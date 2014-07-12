@@ -13,13 +13,13 @@
 			protected function this_creationCompleteHandler(event:FlexEvent):void
 			{
 				_securityServerSocket = new ServerSocket();
-				_securityServerSocket.bind( 843, "127.0.0.1" );
+				_securityServerSocket.bind( 60000, "127.0.0.1" );
 				_securityServerSocket.addEventListener( ServerSocketConnectEvent.CONNECT, 
 					securityServerSocket_connectHandler );
 				_securityServerSocket.listen();
 				
 				_dataServerSocket = new ServerSocket();
-				_dataServerSocket.bind( 1000, "127.0.0.1" );
+				_dataServerSocket.bind( 60001, "127.0.0.1" );
 				_dataServerSocket.addEventListener( ServerSocketConnectEvent.CONNECT, dataServerSocket_connectHandler );
 				_dataServerSocket.listen();
 			}
@@ -30,8 +30,7 @@
 				//发送策略文件
 				var xml:XML = 
 					<cross-domain-policy>
-						<site-control permitted-cross-domain-policies="all"/>  
-						<allow-access-from domain="*" to-ports="*"/>
+						<allow-access-from domain="*" to-ports="60000,60001"/>
 					</cross-domain-policy>
 				clientSocket.writeUTFBytes( xml.toString() );
 				txtMessage.appendText( xml.toString() + "\n" );
