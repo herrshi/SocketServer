@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" 
+					   creationComplete="this_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import mx.events.FlexEvent;
+			
+			private var _securityServerSocket:ServerSocket;
+			private var _dataServerSocket:ServerSocket;
+			
+			protected function this_creationCompleteHandler(event:FlexEvent):void
+			{
+				_securityServerSocket = new ServerSocket();
+				_securityServerSocket.bind( 843, "127.0.0.1" );
+				_securityServerSocket.addEventListener( ServerSocketConnectEvent.CONNECT, 
+					securityServerSocket_connectHandler );
+				_securityServerSocket.listen();
+				
+				_dataServerSocket = new ServerSocket();
+				_dataServerSocket.bind( 1000, "127.0.0.1" );
+				_dataServerSocket.addEventListener( ServerSocketConnectEvent.CONNECT, dataServerSocket_connectHandler );
+				_dataServerSocket.listen();
+			}
+			
+			private function securityServerSocket_connectHandler( event:ServerSocketConnectEvent ):void
+			{
+				var clientSocket:Socket = event.socket;
+				//发送策略文件
+				var xml:XML = 
+					<cross-domain-policy>
+						<site-control permitted-cross-domain-policies="all"/>  
+						<allow-access-from domain="*" to-ports="*"/>
+					</cross-domain-policy>
+				clientSocket.writeUTFBytes( xml.toString() );
+				txtMessage.appendText( xml.toString() + "\n" );
+				clientSocket.flush();
+				txtMessage.appendText( "发送策略文件到" + clientSocket.remoteAddress + ":" + clientSocket.remotePort + "\n" );
+				clientSocket.close();
+			}
+			
+			private function dataServerSocket_connectHandler( event:ServerSocketConnectEvent ):void
+			{
+				var clientSocket:Socket = event.socket;
+				clientSocket.addEventListener( ProgressEvent.SOCKET_DATA, clientSocket_socketDataHandler );
+				clientSocket.writeUTFBytes( "服务器消息: 你已连接到服务器" );
+				clientSocket.flush();
+				txtMessage.appendText( "有新连接" + clientSocket.remoteAddress + ":" + clientSocket.remotePort + "\n" );
+			}
+			
+			private function clientSocket_socketDataHandler( event:ProgressEvent ):void
+			{
+				var byteArray:ByteArray = new ByteArray();
+				var clientSocket:Socket = event.target as Socket;
+				clientSocket.readBytes( byteArray, clientSocket.bytesAvailable );
+				var receiveMessage:String = byteArray.toString();
+				txtMessage.appendText( receiveMessage + "\n" );
+			}
+		]]>
+	</fx:Script>
+	<s:TextArea id="txtMessage" height="100%" width="100%"/>
+</s:WindowedApplication>
