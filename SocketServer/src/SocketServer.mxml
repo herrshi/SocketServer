@@ -1,28 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
 					   xmlns:s="library://ns.adobe.com/flex/spark" 
-					   xmlns:mx="library://ns.adobe.com/flex/mx" 
-					   creationComplete="this_creationCompleteHandler(event)">
+					   xmlns:mx="library://ns.adobe.com/flex/mx">
 	<fx:Script>
 		<![CDATA[
-			import mx.events.FlexEvent;
-			
 			private var _securityServerSocket:ServerSocket;
 			private var _dataServerSocket:ServerSocket;
 			
-			protected function this_creationCompleteHandler(event:FlexEvent):void
-			{
-				_securityServerSocket = new ServerSocket();
-				_securityServerSocket.bind( 60000, "127.0.0.1" );
-				_securityServerSocket.addEventListener( ServerSocketConnectEvent.CONNECT, 
-					securityServerSocket_connectHandler );
-				_securityServerSocket.listen();
-				
-				_dataServerSocket = new ServerSocket();
-				_dataServerSocket.bind( 60001, "127.0.0.1" );
-				_dataServerSocket.addEventListener( ServerSocketConnectEvent.CONNECT, dataServerSocket_connectHandler );
-				_dataServerSocket.listen();
-			}
+			private var _clientList:Array = [];
 			
 			private function securityServerSocket_connectHandler( event:ServerSocketConnectEvent ):void
 			{
@@ -30,22 +15,26 @@
 				//发送策略文件
 				var xml:XML = 
 					<cross-domain-policy>
-						<allow-access-from domain="*" to-ports="60000,60001"/>
+						<allow-access-from domain="*" to-ports="6000,6001"/>
 					</cross-domain-policy>
 				clientSocket.writeUTFBytes( xml.toString() );
-				txtMessage.appendText( xml.toString() + "\n" );
+				txtMsgReceived.appendText( xml.toString() + "\n" );
 				clientSocket.flush();
-				txtMessage.appendText( "发送策略文件到" + clientSocket.remoteAddress + ":" + clientSocket.remotePort + "\n" );
+				txtMsgReceived.appendText( "发送策略文件到" + clientSocket.remoteAddress + ":" + 
+					clientSocket.remotePort + "\n" );
 				clientSocket.close();
 			}
 			
 			private function dataServerSocket_connectHandler( event:ServerSocketConnectEvent ):void
 			{
 				var clientSocket:Socket = event.socket;
+				_clientList.push( clientSocket );
+				
 				clientSocket.addEventListener( ProgressEvent.SOCKET_DATA, clientSocket_socketDataHandler );
 				clientSocket.writeUTFBytes( "服务器消息: 你已连接到服务器" );
 				clientSocket.flush();
-				txtMessage.appendText( "有新连接" + clientSocket.remoteAddress + ":" + clientSocket.remotePort + "\n" );
+				txtMsgReceived.appendText( "有新连接" + clientSocket.remoteAddress + ":" + 
+					clientSocket.remotePort + "\n" );
 			}
 			
 			private function clientSocket_socketDataHandler( event:ProgressEvent ):void
@@ -54,9 +43,79 @@
 				var clientSocket:Socket = event.target as Socket;
 				clientSocket.readBytes( byteArray, clientSocket.bytesAvailable );
 				var receiveMessage:String = byteArray.toString();
-				txtMessage.appendText( receiveMessage + "\n" );
+				txtMsgReceived.appendText( receiveMessage + "\n" );
 			}
+			
+			protected function btnSecuritySocket_clickHandler(event:MouseEvent):void
+			{
+				_securityServerSocket = new ServerSocket();
+				_securityServerSocket.bind( int(txtSecurityPort.text), txtSecurityIp.text );
+				_securityServerSocket.addEventListener( ServerSocketConnectEvent.CONNECT, 
+					securityServerSocket_connectHandler );
+				_securityServerSocket.listen();
+				
+			}
+			
+			protected function btnDataSocket_clickHandler(event:MouseEvent):void
+			{
+				_dataServerSocket = new ServerSocket();
+				_dataServerSocket.bind( int(txtDataPort.text), txtDataIp.text );
+				_dataServerSocket.addEventListener( ServerSocketConnectEvent.CONNECT, dataServerSocket_connectHandler );
+				_dataServerSocket.listen();
+				
+			}
+			
+			protected function btnClearMsg_clickHandler(event:MouseEvent):void
+			{
+				txtMsgReceived.text = "";
+				txtMsgSend.text = "";
+			}
+			
+			protected function btnSendMsg_clickHandler(event:MouseEvent):void
+			{
+				for each ( var clientSocket:Socket in _clientList )
+				{
+					clientSocket.writeUTFBytes( txtMsgSend.text );
+					clientSocket.flush();
+				}
+				
+			}
+			
 		]]>
 	</fx:Script>
-	<s:TextArea id="txtMessage" height="100%" width="100%"/>
+	<s:VGroup height="100%" width="100%" 
+			  paddingTop="5" paddingBottom="5" paddingLeft="5" paddingRight="5">
+		<s:HGroup height="30" width="100%">
+			<s:HGroup height="100%" width="50%" verticalAlign="middle">
+				<s:Label text="安全服务"/>
+				<s:TextInput id="txtSecurityIp" text="127.0.0.1" width="60"/>
+				<s:TextInput id="txtSecurityPort" text="6000" width="40"/>
+				<s:Button id="btnSecuritySocket" label="绑定" 
+						  click="btnSecuritySocket_clickHandler(event)"/>
+			</s:HGroup>
+			
+			<s:HGroup height="100%" width="50%" verticalAlign="middle">
+				<s:Label text="数据服务"/>
+				<s:TextInput id="txtDataIp" text="127.0.0.1" width="60"/>
+				<s:TextInput id="txtDataPort" text="6001" width="40"/>
+				<s:Button id="btnDataSocket" label="绑定" 
+						  click="btnDataSocket_clickHandler(event)"/>
+			</s:HGroup>
+		</s:HGroup>
+		
+		<s:Label text="接受消息："/>
+		<s:TextArea id="txtMsgReceived" height="100%" width="100%"/>
+		
+		<s:Label text="发送消息："/>
+		<s:TextInput id="txtMsgSend" width="100%"/>
+		
+		<s:HGroup height="30" width="100%" horizontalAlign="center" verticalAlign="middle">
+			<s:Button id="btnClearMsg" label="清除消息" 
+					  click="btnClearMsg_clickHandler(event)"/>
+			<s:Button id="btnSendMsg" label="发送消息" 
+					  click="btnSendMsg_clickHandler(event)"/>
+		</s:HGroup>
+	</s:VGroup>
+	
+	
 </s:WindowedApplication>
