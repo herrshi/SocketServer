@@ -31,28 +31,42 @@
 				_clientList.push( clientSocket );
 				
 				clientSocket.addEventListener( ProgressEvent.SOCKET_DATA, clientSocket_socketDataHandler );
+				clientSocket.addEventListener( Event.CLOSE, clientSocket_closeHandler );
 				clientSocket.writeUTFBytes( "服务器消息: 你已连接到服务器" );
 				clientSocket.flush();
 				txtMsgReceived.appendText( "有新连接" + clientSocket.remoteAddress + ":" + 
 					clientSocket.remotePort + "\n" );
 			}
 			
+			private function clientSocket_closeHandler( event:Event ):void
+			{
+				var targetSocket:Socket = event.target as Socket;
+				
+				for ( var i:uint = 0; i < _clientList.length; i++ )
+				{
+					var socket:Socket = _clientList[ i ] as Socket;
+					if ( socket.remoteAddress == targetSocket.remoteAddress && socket.remotePort == targetSocket.remotePort )
+					{
+						_clientList.splice( i, 1 );
+					}
+				}
+				txtMsgReceived.appendText( socket.remoteAddress + ":" + socket.remotePort + "连接已断开\n" );
+			}
+			
 			private function clientSocket_socketDataHandler( event:ProgressEvent ):void
 			{
 				var byteArray:ByteArray = new ByteArray();
 				var clientSocket:Socket = event.target as Socket;
-				clientSocket.readBytes( byteArray, clientSocket.bytesAvailable );
+				clientSocket.readBytes( byteArray, 0, clientSocket.bytesAvailable );
 				var receiveMessage:String = byteArray.toString();
 				txtMsgReceived.appendText( receiveMessage + "\n" );
 				
 				//消息以#2开头，#3结束
 				if ( receiveMessage.charCodeAt( 0 ) == 2 && receiveMessage.charCodeAt( receiveMessage.length - 1 ) == 3 )
 				{
-					txtMsgReceived.appendText( receiveMessage + "\n" );
 					var msgArray:Array = receiveMessage.split( String.fromCharCode( 3 ) );
 					for each ( var msg:String in msgArray )
 					{
-						txtMsgReceived.appendText( msg + "\n" );
 						if ( msg.charCodeAt( 0 ) == 2 )
 						{
 							//去掉开头的#2
@@ -64,12 +78,26 @@
 								//心跳消息
 								case "beattest":
 									//向客户端回复心跳消息
-									sendMessage( msg );
+									if ( chkHeartBeat.selected )
+									{
+										sendMessage( msg );
+									}
 									break;
 							}
 						}
 					}
 				}
+			}
+			
+			private function convertStringToAscii( string:String ):String
+			{
+				var result:String = "";
+				for ( var i:uint = 0; i < string.length; i++ )
+				{
+					result += string.charCodeAt( i ) + " ";
+				}
+				
+				return result;
 			}
 			
 			private function sendMessage( message:String ):void
@@ -150,6 +178,7 @@
 					  click="btnClearMsg_clickHandler(event)"/>
 			<s:Button id="btnSendMsg" label="发送消息" 
 					  click="btnSendMsg_clickHandler(event)"/>
+			<s:CheckBox id="chkHeartBeat" label="回复心跳消息" selected="true"/>
 		</s:HGroup>
 	</s:VGroup>
 	
